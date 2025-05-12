@@ -18,6 +18,10 @@ class PartialParse(object):
         # The sentence being parsed is kept for bookkeeping purposes. Do NOT alter it in your code.
         self.sentence = sentence
 
+
+        self.stack = ["ROOT"]
+        self.buffer = sentence.copy()
+        self.dependencies = []
         ### YOUR CODE HERE (3 Lines)
         ### Your code should initialize the following fields:
         ###     self.stack: The current stack represented as a list with the top of the stack as the
@@ -43,6 +47,14 @@ class PartialParse(object):
                                 left-arc, and right-arc transitions. You can assume the provided
                                 transition is a legal transition.
         """
+        if transition == "S":
+            self.stack.append(self.buffer.pop(0))
+
+        elif transition == "LA":
+            self.dependencies.append((self.stack[-1],self.stack.pop(-2)))
+        elif transition == "RA":
+            self.dependencies.append((self.stack[-2],self.stack.pop(-1)))
+    
         ### YOUR CODE HERE (~7-12 Lines)
         ### TODO:
         ###     Implement a single parsing step, i.e. the logic for the following as
@@ -86,7 +98,25 @@ def minibatch_parse(sentences, model, batch_size):
                                                     same as in sentences (i.e., dependencies[i] should
                                                     contain the parse for sentences[i]).
     """
-    dependencies = []
+    partial_parses = [PartialParse(sentence) for sentence in sentences]
+    unfinished_parses = partial_parses[:]
+    
+
+
+    while len(unfinished_parses) > 0:
+        minibatch = unfinished_parses[:batch_size]
+
+        transitions = model.predict(minibatch)
+        for idx,transition in enumerate(transitions):
+            minibatch[idx].parse_step(transition)
+        
+        for parse in minibatch:
+            if len(parse.buffer) == 0 and len(parse.stack) == 1:
+                unfinished_parses.remove(parse)
+    
+    dependencies = [pp.dependencies for pp in partial_parses]
+
+
 
     ### YOUR CODE HERE (~8-10 Lines)
     ### TODO:

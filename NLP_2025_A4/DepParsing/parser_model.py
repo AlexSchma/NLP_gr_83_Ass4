@@ -45,9 +45,18 @@ class ParserModel(nn.Module):
         self.dropout_prob = dropout_prob
         self.embed_size = embeddings.shape[1]
         self.hidden_size = hidden_size
-        self.embeddings = nn.Parameter(torch.tensor(embeddings))
+        self.embeddings = nn.Parameter(torch.tensor(embeddings)) #requires_grad=False ?
+        self.embed_to_hidden_weight = nn.Parameter(torch.empty(self.embed_size * self.n_features, self.hidden_size))
+        nn.init.xavier_uniform_(self.embed_to_hidden_weight)
 
-        ### YOUR CODE HERE (~9-10 Lines)
+        self.embed_to_hidden_bias = nn.Parameter(torch.empty(self.hidden_size))
+        nn.init.uniform_(self.embed_to_hidden_bias)
+        self.dropout = nn.Dropout(p=self.dropout_prob)
+        self.hidden_to_logits_weight = nn.Parameter(torch.empty(self.hidden_size, self.n_classes))
+        nn.init.xavier_uniform_(self.hidden_to_logits_weight)
+        self.hidden_to_logits_bias = nn.Parameter(torch.empty(self.n_classes))
+        nn.init.uniform_(self.hidden_to_logits_bias)
+        
         ### TODO:
         ###     1) Declare `self.embed_to_hidden_weight` and `self.embed_to_hidden_bias` as `nn.Parameter`.
         ###        Initialize weight with the `nn.init.xavier_uniform_` function and bias with `nn.init.uniform_`
@@ -87,6 +96,9 @@ class ParserModel(nn.Module):
 
         ### YOUR CODE HERE (~1-4 Lines)
         ### TODO:
+        x = [self.embeddings[i] for i in w]
+        x = torch.stack(x, dim=0)
+        x = x.view(x.shape[0], -1)
         ###     1) For each index `i` in `w`, select `i`th vector from self.embeddings
         ###     2) Reshape the tensor using `view` function if necessary
         ###
@@ -131,6 +143,10 @@ class ParserModel(nn.Module):
         @return logits (Tensor): tensor of predictions (output after applying the layers of the network)
                                  without applying softmax (batch_size, n_classes)
         """
+        E = self.embedding_lookup(w)
+        h = F.relu(torch.matmul(E, self.embed_to_hidden_weight) + self.embed_to_hidden_bias)
+        h_dropout = self.dropout(h)
+        logits = torch.matmul(h_dropout, self.hidden_to_logits_weight) + self.hidden_to_logits_bias
         ### YOUR CODE HERE (~3-5 lines)
         ### TODO:
         ###     Complete the forward computation as described in write-up. In addition, include a dropout layer
